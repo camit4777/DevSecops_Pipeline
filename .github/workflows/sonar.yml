@@ -1,0 +1,13 @@
+# .github/workflows/sonar.yml
+name: Sonar Scan
+
+on:
+  workflow_call:
+
+jobs:
+  sonar:
+    runs-on: java_build
+    #needs: build  # Ensures Sonar runs after build succeeds
+    steps:
+      - name: SonarCloud Scan
+        run: mvn sonar:sonar -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }} -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} -Dsonar.login=${{ secrets.SONAR_TOKEN }}

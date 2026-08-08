@@ -1,0 +1,25 @@
+# .github/workflows/snyk.yml
+# The video left these steps commented out as a scratchpad in
+# .github/workflows/build.txt rather than an active workflow — this file
+# wires that draft into a real reusable workflow (SCA + Docker image scan),
+# matching the "Snyk mostly works on SAST/SCA" comparison slide.
+name: Snyk Security Scan
+
+on:
+  workflow_call:
+
+jobs:
+  snyk:
+    runs-on: java_build
+    steps:
+      - name: Install Snyk
+        run: npm install -g snyk
+
+      - name: Authenticate Snyk
+        run: snyk auth --token=${{ secrets.SYNK_API_TOKEN }}
+
+      - name: Snyk Maven Dependency Scan (SCA)
+        run: snyk test
+
+      - name: Snyk Docker Image Scan
+        run: snyk container test ${{ env.DOCKER_IMAGE }}

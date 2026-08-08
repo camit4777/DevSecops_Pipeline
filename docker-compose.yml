@@ -1,0 +1,30 @@
+version: "3.8"
+
+services:
+  petclinic-mysql:
+    image: mysql:8.0
+    container_name: petclinic-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: petclinic
+      MYSQL_USER: petclinic
+      MYSQL_PASSWORD: petclinic
+    ports:
+      - "3306:3306"
+    volumes:
+      - petclinic-db-data:/var/lib/mysql
+
+  petapp:
+    build: .
+    container_name: petapp
+    restart: unless-stopped
+    depends_on:
+      - petclinic-mysql
+    environment:
+      MYSQL_URL: jdbc:mysql://petclinic-mysql:3306/petclinic
+    ports:
+      - "8080:8080"
+
+volumes:
+  petclinic-db-data:

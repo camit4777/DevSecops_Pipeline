@@ -1,0 +1,75 @@
+# .github/workflows/production.yml
+# CI job chain (build/sonar/test/imagepush) confirmed on screen, identical to
+# feature.yml. The `deploy` job was not visible on screen — reconstructed
+# from the "DevSepOps CI/CD" architecture slide (K8-Manifest Scanning ->
+# K8 CIS Scan -> Deploy -> Smoke Test/API Testing -> DAST) shown early in
+# the video, wired to the ArgoCD project from this series.
+name: Production Pipeline
+
+on:
+  push:
+    branches:
+      - master
+
+env:
+  DOCKER_IMAGE: ankit1111/petapp:${{ github.sha }}
+  MAVEN_OPTS: "-DskipTests=true"
+
+jobs:
+  build:
+    uses: ./.github/workflows/javabuild.yml
+    secrets: inherit
+
+  sonar:
+    uses: ./.github/workflows/sonar.yml
+    needs: build
+    secrets: inherit
+
+  test:
+    uses: ./.github/workflows/test.yml
+    needs: sonar
+    secrets: inherit
+
+  imagepush:
+    uses: ./.github/workflows/imagepush.yml
+    needs: test
+    secrets: inherit
+
+  deploy:
+    runs-on: java_build
+    needs: imagepush
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: K8s Manifest Scan (kubesec)
+        run: |
+          curl -sSL https://raw.githubusercontent.com/controlplaneio/kubesec/master/install.sh | sudo bash
+          kubesec scan k8s/deployment.yaml
+
+      - name: K8s CIS Benchmark Scan (kube-bench, optional — requires cluster access)
+        run: echo "Run kube-bench against the target cluster here if self-hosted runner has cluster access"
+
+      - name: Update image tag in k8s manifest
+        run: |
+          sed -i "s#image: .*#image: ${{ env.DOCKER_IMAGE }}#" k8s/deployment.yaml
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add k8s/deployment.yaml
+          git commit -m "ci: bump image to ${{ github.sha }}" || echo "no changes to commit"
+          git push
+
+      # Argo CD (installed separately, see the End-to-End CD Using ArgoCD
+      # project in this series) auto-syncs on this commit because
+      # k8s/argocd-application.yaml points at this repo/path with
+      # syncPolicy.automated enabled.
+
+      - name: Smoke Test / API Testing
+        run: |
+          sleep 30
+          curl -f http://<your-alb-or-service-endpoint>/actuator/health || exit 1
+
+      - name: DAST — OWASP ZAP baseline scan
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          target: 'http://<your-alb-or-service-endpoint>'

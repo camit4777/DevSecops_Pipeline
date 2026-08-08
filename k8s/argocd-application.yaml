@@ -1,0 +1,24 @@
+# Apply this once, in the argocd namespace, on your management/ArgoCD cluster:
+#   kubectl apply -f k8s/argocd-application.yaml
+#
+# From then on Argo CD watches this repo's k8s/ path and auto-syncs whenever
+# production.yml commits a new image tag into k8s/deployment.yaml — same
+# GitOps pattern as the End-to-End CD Using ArgoCD project in this series.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: petapp
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/<you>/DevSecops_Pipeline.git'
+    path: k8s
+    targetRevision: master
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: petapp
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true

@@ -1,0 +1,25 @@
+# .github/workflows/test.yml
+# NOTE: full file was not readable on screen in the video — reconstructed to
+# match the confirmed pattern (workflow_call, runs-on: java_build) and the
+# live `mvn test` / surefire output that WAS visible (Spring PetClinic's
+# VisitControllerTests, VetControllerTests, ClinicServiceTests, etc).
+name: Unit Test
+
+on:
+  workflow_call:
+
+jobs:
+  test:
+    runs-on: java_build
+    steps:
+      # the self-hosted runner reuses the same workspace as the build job,
+      # so the checked-out code from javabuild.yml is already present here
+      - name: Run Test Suite
+        run: mvn test
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: surefire-reports
+          path: target/surefire-reports/*.xml
